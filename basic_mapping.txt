@@ -1,0 +1,28 @@
+# downloaded fastqs from dropbox and simplified filenames by removing adapter sequences
+
+# make filenames text file so you can run trim-galore on samples
+ls -l ./Sample_4808-MB-* | awk '{print $9}' |  perl -wnl -e '/4808/ and print;' > pe_file_names.for_trim_galore.txt
+  
+
+## copy/paste above output to cmd line for trim galore
+cat pe_file_names.for_trim_galore.txt | awk '{print}' ORS=' '
+
+
+## trim galore requires paired ends in paired sequence like this: A_R1 A_R2 B_R1 B_R2 ...
+
+trim_galore --paired 4808-MB-1_R1_001.fastq.gz 4808-MB-1_R2_001.fastq.gz 4808-MB-2_R1_001.fastq.gz 4808-MB-2_R2_001.fastq.gz 4808-MB-3_R1_001.fastq.gz 4808-MB-3_R2_001.fastq.gz 4808-MB-4_R1_001.fastq.gz 4808-MB-4_R2_001.fastq.gz 4808-MB-5_R1_001.fastq.gz 4808-MB-5_R2_001.fastq.gz 4808-MB-6_R1_001.fastq.gz 4808-MB-6_R2_001.fastq.gz 4808-MB-7_R1_001.fastq.gz 4808-MB-7_R2_001.fastq.gz 4808-MB-8_R1_001.fastq.gz 4808-MB-8_R2_001.fastq.gz
+
+# make new filenames text file from your trim-galore output so facilitate bowtie run
+ls -l *val* | awk '{print $9}' | perl -wnl -e '/(.*)_R.*gz/ and print $1;' | sort | uniq > prefixes.txt
+
+# run bowtie2 on paired ends that have been trimmed
+for i in `cat prefixes.txt`; do bowtie2 -x /kingsley_1/0-raw-data/drosophila/genome/dm6 -p 4 -1 ${i}_R1_001_val_1.fq.gz -2 ${i}_R2_001_val_2.fq.gz | samtools view  -bSh - > ${i}.bam ; done
+
+# get rid of leftover files
+rm *fastq.gz
+
+#sort your bam
+for i in ./*bam; do samtools sort $i > ${i%%bam}srt.bam; done
+
+#remove duplicate reads
+for i in ./*srt.bam; do samtools rmdup $i ${i%%srt.bam}rmdup.bam; done
